@@ -1,0 +1,798 @@
+---
+title: "Intro to Shiny"
+author: "Justin Thompson"
+date: "4/29/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(shiny)
+require(tidyverse)
+```
+# Shiny!!
+
+## And now for something completely different!
+
+Writing Shiny code is very different from writing standard R code. You're not doing analysis, you're creating an interactive webpage. So how the programmer thinks when writing the code is different. Its more akin to thinking about visualizations, but on a grand scheme with multiple dimensions. Check out the below examples in the Shiny Gallery, each provides examples of the interactivity and controls available.
+
+* \href{https://shiny.rstudio.com/gallery/radiant.html}{\color{blue}{\underline{Diamond Analysis}}}
+* \href{https://shiny.rstudio.com/gallery/nutrition-calculator.html}{\color{blue}{\underline{Nutrition Calculator}}}
+* \href{https://shiny.rstudio.com/gallery/covid19-tracker.html}{\color{blue}{\underline{COVID-19 Dashboard}}}
+
+The diamond analysis shows a myriad of controls as well as tabbed pages, the nutrition calculator shows color themes and using *plotly* for visualizations, and the COVID has a ton of super nerdy stuff with a ton of options. The great thing about this gallery, you get access to the code! You can copy and re-purpose widgets for your use. Its always a good idea to give people credit when you copy code though.
+
+## whats good about shiny, why use it
+
+Shiny helps making flexible web-apps that are quickly deployable. One of the best applications of this for ORSAs is dashboards. Senior leaders love dashboards with charts that move, selectors to change the data, and anything else they can play with. Yes, it is possible to create many interesting dashboards using Excel and Pivot Charts with slicers and all that. But you can't easily deploy those on the web for access from any web browser. 
+
+<!-- keep talking about stuff -->
+
+## The parts of shiny file
+There are three parts (or code blocks) of a Shiny file:
+
+1. Setup
+2. User Interface (UI)
+3. Server
+
+### Setup
+Things you want all objects and processes to access.
+
+* Packages
+* External functions
+* Data pre-processing scripts
+* Global data
+
+<!-- Put all of the things you want the entire webpage to have access to here. At a minimum this includes the packages (like `shiny`) but can also include other things. If there are data that will not change while the app is running (at rest) then load it here. Also, any scripts, functions, or random files your app needs should run here as well. -->
+
+\pagebreak
+```{r, eval=FALSE}
+require(tidyverse)
+require(shiny)
+source('./analysisFunctions.R')
+source('./dataPullAPI.R')
+dataTib <- read_csv('./data/unchangingData.csv')
+```
+
+### UI
+
+* Data object, generates a very large list full of things
+* Creates the externals (or front end) of the webpage
+* Many options and settings
+* Syntax is not intuitive for first time users
+
+<!-- ui is a data object, basically a very long list. The syntax is difficult to understand at first glance but what you're really doing is writing one very large, very long function call. Each element of your UI (buttons, sliders, drop downs, check boxes, and so on) is an argument so there are commas everywhere. Here, organization using spacing, tabs, and comments is key to keeping it all straight, especially when starting out. Remember, its a large function call not a script from top to bottom, so each argument (or UI element) must have a separating comma. It gets even more complex with more intricate pages where you are calling sub-functions within larger functions. -->
+
+```{r, results='hide'}
+ui <- fluidPage(
+  actionButton('insertBtn', 'Insert'),
+  sliderInput(
+    'rangeSlider',
+    'Input Range',
+    min=-30,
+    max=30,
+    value=c(-14, 5)),
+    h3('Your Range'),
+  verbatimTextOutput('rangeText')
+)
+```
+
+Look at the `ui` object's sub-list 3.
+
+```{r}
+print(ui[3])
+```
+`fluidPage()` turned a bunch of function calls into HTML code. Pretty neat.
+
+<!-- The fluid page, or any of the other page creating functions, takes all the inputs and creates a large list full of HTML code. This takes away a lot of the web development effort from the coder and gives it to the function. Its still a good idea to learn a little about html and css if you want to make great apps. -->
+
+### Server
+* Function that does the work (or back end)
+* Generates output, sends to UI for display
+* Tricky syntax
+  + Everything is a sub function
+  + Watch out for object scoping issues
+
+\pagebreak
+<!-- Server is a function that runs the backend of the webpage. It does the work and passes data to the UI for display. Basically the server is the brains of the operation, it controls what is displayed by the UI. And you can use the server to modify the UI dynamically. Pay attention to how the UI and server objects in the example connect. SHOW ON SCREEN AND DISCUSS.
+
+Whereas the UI is a large function call with a difficult syntax, the server syntax is more akin to standard coding where you go top to bottom, line by line just like a normal script. The trick here is the behavior of the objects within the function is not what you expect, because pretty much every line within the server is itself another function. So object scoping becomes more tricky. If you create an object at one point of the server it may not be available to other commands depending on how its written. But, we'll start with a simple example without all that. -->
+
+```{r, results='hide'}
+server <- function(input, output) {
+  output$rangeText <- renderText({paste(input$rangeSlider[1],
+                                        'to',
+                                        input$rangeSlider[2])})
+}
+```
+
+### Put it together
+
+Now to put it together and create a webpage. The basic method is call the `shinyApp` function and put it all together. This opens a web browser and displays the page.
+
+<!-- And you finish it off with a command to run the shinyApp function and create your webpage (hopefully). When searching for help on Google you may see the ui and server created using two different files, usually names `ui.R` and `server.R`. This method isn't necessary for now, its just an organizational technique. However, some deployment methods (which we'll discuss later) may require this. -->
+
+```{r, eval=FALSE}
+shinyApp(ui, server)
+shinyApp('ui.R','server.R')
+```
+
+<!-- Now we'll create the UI and server from the above blocks and make a webpage using shiny. TRANSITION TO THE WEB PAGE ON THE SHARE SCREEN.
+
+Here we have a very basic webpage with some examples of controls. We have an action button, range slider, and a text display. Look back at the code and see how those connect to the commands in the UI. If you slide the range slider, the text updates. That's the server doing some work. Right now the insert button does nothing because there is no action in the server connecting to the action button.
+
+#################################################
+-->
+
+## Let's make a page
+
+Now we'll discuss the key steps for making a shiny app. This is not an exhaustive list and likely you will move between steps during debugging or based on other guidance.
+
+### Design/do the analysis
+
+Shiny is primarily visualization tool, do your analysis somewhere else if its not very simple. A best practice is keep the shiny script free from analysis code. Leverage external functions and scripts and call those within the server function to generate output. You can add functions or run external scripts from a file using the `source()` function.
+
+<!-- Shiny code gets very complex and difficult to read quickly. Additionally, there are scoping issues with conducting analysis within blocks of the server function. To keep the syntax clean and avoid headaches write external functions to conduct on-the-fly analysis which uses shiny inputs, redraw plots based on user inputs, ect. Use the other skills you've learned for data manipulation, model building, and analysis first, then start making your shiny. Also of note here, debugging shiny code is very difficult. In RStudio when you run a script and it fails somewhere the traceback does a pretty good job telling you where the error happened. But with shiny there are so many internal processes the traceback typically is useless. So if there's a problem with your analysis code its all the more difficult to find the errors when wrapping it in a shiny function-->
+
+### Make a basic page
+
+Let's make a basic page to display a histogram. We'll add a control for the user to select the number of bins to show how reactive objects work in shiny. We'll start with a basic sidebar layout with our controls in the sidebar and the chart in the main panel.
+
+<!-- You've got to start somewhere, so lets make a basic page to plot a histogram using the chickweight dataset built in to R. We'll use fluid page to create our page and then use the sidebar layout function to place our objects. There are many more function to use to create the page, but fluid page is the simplest. I won't explain all of the customization arguments to each of these functions as we go along, there are just too many. So, let's define the UI. -->
+```{r, eval=F}
+ui <- 
+  fluidPage(
+    # App title
+    titlePanel('This is my title'),
+    # Define a layout
+    sidebarLayout(
+      #Add the two elements of this layout
+      sidebarPanel(
+        
+      ),
+      mainPanel(
+        
+      )
+    )
+  )
+```
+
+The sidebar layout has two parts, the sidebar panel and the main panel. I like to define those first so I have some structure to my code, it helps to keep all the arguments straight. Also notice the tab spacing, this also helps keep things organized. Now we need to add controls for the user to select the number of bins and define where we want the chart displayed.
+
+\pagebreak
+```{r, eval=F}
+ui <- 
+  fluidPage(
+    
+    titlePanel('This is my title'),
+    
+    sidebarLayout(
+      
+      sidebarPanel(
+        # Add a slider for bin control
+        sliderInput(
+          'binSlider',
+          'Number of Bins',
+          min = 1, # the min value on the slider
+          max = 20, # the max value on the slider
+          value = 5) # the starting value on the slider
+      ),
+      mainPanel(
+        plotOutput('weightPlot')
+      )
+    )
+  )
+```
+
+The `sliderbarInput` function creates the slider bar with the given settings and the `plotOutput` function creates a display location. The first argument to each function is a string. This string is the variable name we'll use to reference these objects in the server. Defining the server is simple, its a standard function definition with two (usually) arguments: `input`, `output`.
+
+<!-- Notice again how the UI variables connect to the server. We reference UI from the server using the strings we used to name the UI objects (inputID argument). When we take input from the UI we reference the input object with that inputID and when we send information back to the UI we reference the output object with that inputID. Look at the slider bar input in the bins argument and the weightPlot output. This example is very basic but this is the syntax for connecting the two objects and making great looking pages. -->
+```{r, eval=F}
+server <- function(input, output) {
+  
+  output$weightPlot <- renderPlot({
+    
+    ggplot(ChickWeight, aes(weight)) +
+      geom_histogram(aes(fill = factor(Diet)), bins = input$binSlider) +
+      ggtitle('Histogram of Chicken Weights', sub = 'Colors Represent the Diet') +
+      scale_fill_manual(values = c('navyblue', 'plum2', 'orange', 'red'))
+    
+  })
+  
+}
+```
+
+<!-- Remember in the beginning I mentioned the syntax is somewhat awkward at first. Look at the render plot function. It is not a standard function call, we've written our own function inside that function call. That's why it is wrapped in curly brackets. Be careful of this moving forward. Also pay attention to how we're taking a value from the UI using the input object and sending a value back to the UI using the output object. By taking a value from the UI to create the bins we've made the chart reactive. RUN THE CODE. This is what you should see, now as I slide the slider the chart redraws using the new bin value. -->
+
+Now create the plot and tell the server where to send it using the location variable names in the UI. You also must give the server information on what type the object is so server can render the object correctly. To draw our plot we use `renderPlot` and wrap it around our `ggplot` code and send the results to the output variable which matches the one in the UI. For the bins, we take an `input` value from the slider variable in the UI.
+
+##### EXERCISE 1
+Use the `ChickWeight` built-in dataset and add a boxplot to the app showing the weight grouped by measurement time. Add a control to display only one of the diet types (1, 2, 3, 4) or all measurements in the `Diet` variable. Use any control you'd like (I recommend `selectInput()`).
+
+*Hint: Add some code to filter the data based on the input.*
+
+```{r, include=FALSE, eval=F}
+ui <- 
+  fluidPage(
+    
+    titlePanel('Chicken Diet Plots'),
+    
+    sidebarLayout(
+      
+      sidebarPanel(
+        # Add a dropdown to select the diet
+        selectInput(
+          'dietSelect',
+          'Which Diet?',
+          choices = c('All', unique(ChickWeight$Diet)), # the options
+          multiple=FALSE) # only select one
+      ),
+      mainPanel(
+        plotOutput('weightPlot')
+      )
+    )
+  )
+
+# Define server logic required to draw a histogram ----
+server <- function(input, output) {
+  
+  output$weightPlot <- renderPlot({
+    chickDF <-
+      if(input$dietSelect=='All'){ChickWeight
+      }else {ChickWeight %>% filter(Diet==input$dietSelect)}
+                      
+    ggplot(chickDF) +
+      geom_boxplot(aes(x=factor(Time), y=weight))+
+      ggtitle('Boxplot of Chicken Weights vs. Time',
+              subtitle = paste('Diet:', input$dietSelect))+
+      xlab('Time')+
+      ylab('Weight (g)')
+    
+  })
+  
+}
+
+# Create Shiny app ----
+shinyApp(ui = ui, server = server)
+
+```
+
+<!-- This is how I solved it. This isn't "the" way to do it, just a way. That happens a lot, many ways to solve a problem. WALK THEM THROUGH IT!! -->
+
+\pagebreak
+### Make it better
+
+Shiny has many options for displaying the page. We chose `fluidPage` above but there are other ways like `fixedPage`, `bootstrapPage`, or `navbarPage` to name a few. Check out some of the examples in the \href{https://shiny.rstudio.com/gallery}{\color{blue}{\underline{Shiny Gallery}}}. Certain page types are better for some tasks than others. When starting out, `fluidPage` and ` fixedPage` are good for getting a basic handle on how shiny works.
+
+#### Change the page setup
+
+You can modify the layout of the page by changing the page type, the layout type, or by adding arguments directing the UI where to put things. If we put both of our charts (the histogram and the boxplot) into the UI without additional direction the UI simply stacks them.
+
+```{r, eval=F}
+ui <- 
+  fluidPage(
+    
+    titlePanel('Chicken Plots'),
+    
+    sidebarLayout(
+      
+      sidebarPanel(
+        # Add a slider for bin control        
+        sliderInput(
+          'binSlider',
+          'Number of Bins',
+          min = 1, # the min value on the slider
+          max = 20, # the max value on the slider
+          value = 5), # the starting value on the slider
+        selectInput(
+          'dietSelect',
+          'Which Diet?',
+          choices = c('All', unique(ChickWeight$Diet)), # the options
+          multiple=FALSE) # only select one
+      ),
+      mainPanel(
+        plotOutput('weightPlot'),
+        plotOutput('boxPlot')
+      )
+    )
+  )
+```
+
+
+<!-- We all know that having things line up on a slide is super important to senior leaders, the same goes here. We can direct shiny on how big to make a chart, how to line it up, make things right, left, center aligned, all by adding commands. So look what happens when we just add another plot output command to the UI. They are just on top of each other. That might be fine in some circumstances, but not usually. So lets add some commands to align things. -->
+
+The basic alignment commands are `fluidRow` and `column`. These functions operate as they seem, they grid the page with rows and columns.
+
+<!-- Fluid row defines a row within the panel it is placed. Each row has 12 spaces in it. You first define a row, then use the columns command to place things inside the row. You tell the column function how many spaces of the row you want it to use. The page automatically scales fluid pages and rows to the available panel width. -->
+
+Now we'll use `fluidRow` with `column` to put both charts up at the same time with their controls below them. We'll get rid of the sidebar panel and put everything on the page. There are additional arguments available to `column` like `align` so you can fully customize your placement. 
+
+\pagebreak
+```{r, eval=F}
+ui <- 
+  fluidPage(
+    
+    titlePanel('Chicken Plots'),
+    # create a row for the display titles
+    fluidRow(
+      column(
+        width=6, align='center',
+        'Weight Histogram'
+        ),
+      column(
+        width=6, align='center',
+        'Variable Boxplot'
+        )
+      ),
+    # create a row for the charts
+    fluidRow(
+      column(
+        width=5, align='center',
+        plotOutput('weightPlot')
+        ),
+      column(
+        width=5, align='center',
+        plotOutput('boxPlot')
+        )
+      ),
+    # create a row for the controls
+    fluidRow(
+      column(
+        width=5, align='center',
+        sliderInput(
+          'binSlider',
+          'Number of Bins',
+          min = 1, # the min value on the slider
+          max = 20, # the max value on the slider
+          value = 5) # the starting value on the slider
+      ),
+      column(
+        width=5, align='center',
+        selectInput(
+          'dietSelect',
+          'Which Diet?',
+          choices = c('All', unique(ChickWeight$Diet)), # the options
+          multiple=FALSE) # only select one
+      )
+    )
+  )
+```
+
+We don't need to change the server function at all with this new UI as long as none of the variable names are changed. The server is doing the same work and it doesn't care where the UI puts it.
+
+We've used the fluid versions of these functions thus far, but there are fixed versions as well. The fluid versions dynamically resize the page when the webpage resizes and can use the advanced layout options like `sidebarLayout`. Fixed pages only use rows and columns and have a fixed pixel width. While it isn't difficult to move between page types after you start working its better to have a plan before writing any code and stick with it.
+
+#### Use external functions
+
+As mentioned earlier, using external functions helps you shiny code remain uncluttered and helps with debugging. You can define these functions directly in the setup code block or place them on external files and read them in using the `source` function. 
+
+<!-- I can't recommend this action enough. With the simple apps we've dealt with here it may seem unnecessary but as you add layers of complicated analysis, reactive objects, and plot drawing options the server code gets very difficult to understand. Additionally, having external functions makes design and debugging much easier. -->
+
+Let's create a function in the setup block to create our chicken weight charts.
+
+```{r, eval=F}
+plotDraw <- function(diet) {
+  # filter the data based on the function input
+  chickDF <-
+    if(diet=='All'){ChickWeight
+    }else {ChickWeight %>% filter(Diet==diet)}
+  # create a ggplot object with the new data
+  pBox <- ggplot(chickDF) +
+    geom_boxplot(aes(x=factor(Time), y=weight))+
+    ggtitle('Boxplot of Chicken Weights vs. Time',
+            subtitle = paste('Diet:', diet))+
+    xlab('Time')+
+    ylab('Weight (g)')
+  return(pBox)
+}
+ui <- 
+  # no change from our previous UI
+  fluidPage(
+    titlePanel('Chicken Plots'),
+    fluidRow(
+      column(
+        width=5, align='center',
+        plotOutput('weightPlot')
+      ),
+      column(
+        width=5, align='center',
+        plotOutput('boxPlot')
+      )
+    ),
+    fluidRow(
+      column(
+        width=5, align='center',
+        sliderInput('binSlider',
+                    'Number of Bins',
+                    min = 1,
+                    max = 20, 
+                    value = 5) 
+      ),
+      column(
+        width=5, align='center',
+        selectInput('dietSelect',
+                    'Which Diet?',
+                    choices = c('All', unique(ChickWeight$Diet)),
+                    multiple=FALSE)
+      )
+    )
+  )
+server <- function(input, output) {
+  # no change to the way we've drawn the histogram
+  output$weightPlot <- renderPlot({
+    ggplot(ChickWeight, aes(weight)) +
+      geom_histogram(aes(fill = factor(Diet)), bins = input$binSlider) +
+      ggtitle('Histogram of Chicken Weights', sub = 'Colors Represent the Diet') +
+      scale_fill_manual(values = c('navyblue', 'plum2', 'orange', 'red'))
+  })
+  # CHANGE! this one line with the function call generates the plot
+  output$boxPlot <- renderPlot({
+    plotDraw(input$dietSelect)
+  })
+}
+shinyApp(ui, server)
+```
+Compare the two `renderPlot` function calls. The second one, which draws the boxplot, is much easier to understand than the first.
+
+<!-- This shiny app functions the same as the previous chicken weight chart creator we made. It has the same reactivity and runs just as quickly. -->
+
+##### EXERCISE 2
+
+Create an external function to draw the histogram and modify the server function to incorporate the change. You should not have to change the UI.
+
+```{r, include=F}
+histDraw <- function(bins){
+  pHist <- ggplot(ChickWeight, aes(weight)) +
+    geom_histogram(aes(fill = factor(Diet)), bins = bins) +
+    ggtitle('Histogram of Chicken Weights', sub = 'Colors Represent the Diet') +
+    scale_fill_manual(values = c('navyblue', 'plum2', 'orange', 'red'))
+  return(pHist)
+}
+server <- function(input, output){
+  output$weightPlot <- renderPlot({
+    histDraw(input$binSlider)
+  })
+  output$boxPlot <- renderPlot({
+    plotDraw(input$dietSelect)
+  })
+}
+```
+
+<!-- Look at how much cleaner the server function is now! Also, we can debug our functions without having to render the webapp each time. -->
+
+#### Add controls
+
+There are a number of controls available. People familiar with ActiveX controls in Excel will recognize many of these. Here's a \href{https://shiny.rstudio.com/tutorial/written-tutorial/lesson3/}{\color{blue}{\underline{handy gallery}}} for reference. We've already seen the slider, range slider and drop-down list. We'll do a quick demonstration of the others on a basic page.
+
+##### Check-boxes and radio buttons
+
+These simple controls return a value depending on which box is checked. The different types work similarly, but only one radio button can be checked while multiple check-boxes can be checked. The syntax follows what we've seen with the other controls. First give it a code name, then a display name, then add the arguments specific to that control.
+
+```{r, eval=F}
+ui <- fluidPage(
+  checkboxInput('singleCB', 'Only one check-box', value=TRUE),
+  verbatimTextOutput('singleCBout'),
+  checkboxGroupInput('groupCB', 'Many check-boxes',
+                     choices=list('Choice A'=1,
+                                  'Choice B'=2,
+                                  'Choice C'=4,
+                                  'Choice D'=3),
+                     selected=4),
+  verbatimTextOutput('groupCBout'),
+  radioButtons('groupRadio', 'Many radio buttons',
+               choices=list('Choice A'='A',
+                            'Choice B'='B',
+                            'Choice C'=T,
+                            'Choice D'=33),
+               selected='A'),
+  verbatimTextOutput('groupRadioout')
+)
+```
+
+\pagebreak
+```{r, eval=F}
+server <- function(input, output){
+  # the renderText function takes an object and converts to a string
+  # great for debugging
+  output$singleCBout <- renderText({input$singleCB})
+  output$groupCBout <- renderText({input$groupCB})
+  output$groupRadioout <- renderText({input$groupRadio})
+}
+shinyApp(ui, server)
+```
+
+Notice the order in which the choices appear and the returned values. These controls are great for adding layers onto a chart or making some object appear or disappear from the display.
+
+<!-- The a single check-box returns a boolean value while the groups return the value assigned in the choices list. We also can mix the types of returned values. The choices appear in the order we give it. We can use this information to add data to a chart, create a new chart, change display options, etc. They're great for giving the user a feeling of control over the display. -->
+
+##### User input
+
+These controls generate a single object which is passed verbatim to the server of the given type (text, numeric, etc). Simple and straightforward. The syntax follow the other controls.
+
+```{r, eval=F}
+ui <- fluidPage(
+  textInput('userText', 'Name', value='Type your name...'),
+  verbatimTextOutput('userTextOut'),
+  numericInput('inputNum', 'Age', value=18),
+  verbatimTextOutput('inputNumOut'),
+  dateInput('inputDate', 'Birthday',value='2000-01-01'),
+  verbatimTextOutput('inputDateOut'),
+  dateRangeInput('inputDateRange', 'When to when?'),
+  verbatimTextOutput('inputDateRangeOut')
+)
+
+server <- function(input, output){
+  output$userTextOut <- renderText({input$userText})
+  output$inputNumOut <- renderText({input$inputNum})
+  output$inputDateOut <- renderText({paste(input$inputDate)})
+  output$inputDateRangeOut <- renderText({paste(input$inputDateRange)})
+}
+shinyApp(ui, server)
+```
+
+The different types of inputs give greater control to the programmer over the user's actions. This way you get the expected variable type since you can't really trust the user to do what you expect. 
+
+<!-- Watch as the text changes as you type your name. Each keystroke updates the display. Every time a change happens the server runs and sends the new information to the UI unless you tell it not to. Now click on the date inputs. A handy calendar pops up to make sure the user gives back a correct date form. We didn't give the date range a default value so the system defaulted to today -->
+
+##### File input
+
+Use file input to allow that user to upload data into shiny for analysis. The browse button lets the user add a file just like attaching a document to an email. Its more complicated for the programmer though.
+
+<!-- While this action sounds great, it comes with all sorts of challenges. Primarily, you need to trust that the user will upload a data file in the correct configuration. It sure looks neat and if you get it to work correctly your deployable app is more useful. Additionally, the user selecting a file doesn't send that file into Shiny ready to use. The input object it makes is just a set of strings with information about the file. You can use one of those strings (datapath) to read in the file. 
+
+1024^2 is the number of binary bytes in a MB for Windows RAM-->
+
+```{r, eval=F}
+ui <- fluidPage(
+  # input control
+  fileInput('inputFile', 'Load your data'),
+  # use these to display file information
+  verbatimTextOutput('inputFileInfo'),
+  verbatimTextOutput('inputFileInfo2')
+)
+```
+
+\pagebreak
+```{r, eval=F}
+server <- function(input, output){
+  # increase the size limit on uploaded data to 30 MB
+    # default is 5 MB
+  options(shiny.maxRequestSize=30*1024^2)
+  # create a reactive object to store the data
+  df <- reactive({
+    # check if inputFile exists and run the code if TRUE
+    req(input$inputFile)
+    read_csv(input$inputFile$datapath)
+  })
+  output$inputFileInfo <- renderText({
+    names(input$inputFile)
+  })
+  output$inputFileInfo2 <- renderText({
+    paste(
+      input$inputFile$name,
+      input$inputFile$size,
+      input$inputFile$type,
+      input$inputFile$datapath,
+      sep='\n'
+      )
+  })
+}
+shinyApp(ui, server)
+```
+
+This file input method creates a reactive object. Shiny accesses these objects differently than you're used to thanks to the complex scoping rules for shiny. The reactive object has it's own scope, you access the data like a function, using `()`.
+
+##### Action buttons and reactive objects
+
+Action buttons and reactivity are a class in their own right. Here we'll touch on some ways to use them but it is by no means an exhaustive instruction. An action button is simply a rectangle which the user can click. Its up to the programmer to use that click for something, usually to trigger an event or process (like redraw the plot).
+
+\pagebreak
+```{r, eval=F}
+ui <- fluidPage(
+  actionButton('action', 'Run It!!'),
+  verbatimTextOutput('actionOut')
+)
+server <- function(input, output){
+  output$actionOut <- renderText({input$action})
+}
+shinyApp(ui, server)
+```
+
+Action buttons by themselves are very boring. Each click simply adds one to an integer, counting the clicks. But it is that predictable behavior which lets us use it to control actions. Often times you'll create an analysis tool which has multiple setup options for the user and you don't want things recalculating in the background. You can use an action button along with react/observe function calls to make a block of code only run when the button is clicked.
+
+```{r, eval=F}
+ui <- fluidPage(
+  actionButton('action', 'Run It!!'),
+  plotOutput('randPlot')
+)
+server <- function(input, output){
+  observeEvent(input$action, {
+    r <- rnorm(10000)
+    output$randPlot <- renderPlot({hist(r, breaks=50)})
+  })
+}
+shinyApp(ui, server)
+```
+
+<!-- The OBSERVEEVENT function watches the INPUT ACTION object and only runs its code what that object changes. Otherwise that code sits and does nothing. There's a lot of complexity you can add to this process, which is great but also prone to accidental errors. Sometimes the object doesn't react when you think it should. Difficult to master this. -->
+
+Now every time we click the button new random values generate and a new histogram appears.
+
+##### EXERCISE 3
+<!-- Do this one together... -->
+
+Using the ITSM data, create an app which draws a boxplot, using `ggplot2`, of the time to close a particular set of NECs within a specified date range. Add an option to display the aggregate data or break it out by priority code. Add an action button so the plot renders on a button click. Also create a table (either above or below the chart) which displays the total observations, mean, median, and SD for `daystoclose` for each selected NEC (and priority if selected). 
+
+```{r, include=F, eval=F}
+
+# Setup Block
+exercisePlot <- function(df, nec, startDate, endDate, priorityCheck, countCheck){
+  
+  # if all is selected don't filter, otherwise do
+  dfSub <- if('All' %in% nec){
+    df
+  }else{
+    df %>% filter(asunit %in% nec)
+  }
+  # filter by date
+  dfSub <- 
+    dfSub %>%
+    filter(reportdate>=startDate & closedate<=endDate)
+  # create a new variable to combine NEC and priority
+  dfSub <- dfSub %>% 
+    mutate(NECpriority = paste(asunit, priority, sep=':'))
+  # initiate the plot
+  p <- ggplot(dfSub)
+  # if priority breakdown selected create plot and data table
+  # here you can also put all of your chart display options
+  if(priorityCheck){
+    p <- p +
+      geom_boxplot(aes(x=NECpriority, y=daystoclose)) +
+      labs(title='Boxplot of Days to Close a Ticket',
+           x='NEC:Priority',
+           y='Days') +
+      theme(axis.text.x = element_text(angle=90))
+    dataTab <- dfSub %>%
+      group_by(Unit=asunit, Priority=priority) %>%
+      summarize(Obs=n(),
+                Mean=mean(daystoclose, na.rm=T),
+                Median=median(daystoclose, na.rm=T),
+                SD=sd(daystoclose, na.rm=T))
+    # if the counts is checked add a layer to the plot
+    if(countCheck){
+      p <- p +
+        geom_text(data=dfSub %>%
+                    group_by(NECpriority) %>% 
+                    summarize(count=n()),
+                  aes(x=NECpriority, y=0, label=count))
+    }
+    # priority not checked, create plot and data table
+  }else{
+    p <- p +
+      geom_boxplot(aes(x=asunit, y=daystoclose)) + 
+      theme(axis.text.x = element_text(angle=90))
+    dataTab <- dfSub %>%
+      group_by(Unit=asunit) %>%
+      summarize(Tickets=n(),
+                Mean=mean(daystoclose, na.rm=T),
+                Median=median(daystoclose, na.rm=T),
+                SD=sd(daystoclose, na.rm=T))
+    # add count layer if checked
+    if(countCheck){
+      p <- p +
+        geom_text(data=dfSub %>% group_by(asunit) %>% summarize(count=n()),
+                  aes(x=asunit, y=0, label=count))
+    }
+  }
+  # return both objects inside a list
+  return(list(plot=p, tab=dataTab))
+}
+
+
+ui <- 
+  fluidPage(
+    
+    titlePanel('NEC Ticket Performance'),
+    
+    sidebarLayout(
+      
+      sidebarPanel(
+        # file input
+        fileInput('inputFile', 'Load your data'),
+        # date range inputs
+        dateRangeInput(
+          'dateRange',
+          'Date Range',
+          start='2018-01-01',
+          end='2019-01-01',
+          min='2016-01-04',
+          max='2019-07-12'),
+        # list of NECs, use unique function to create choices
+        selectInput(
+          'necSelect',
+          #'Which NECs?',
+          'Need a file first!',
+          choices = c('None','Still none'),
+          multiple=TRUE),
+        # organize the checkboxes
+        fluidRow(
+          column(6,
+                 checkboxInput('countCheck', 'Display ticket counts', value=TRUE)),
+          column(6,
+                 checkboxInput('priorityCheck', 'Display by priority'))
+        ),
+        # button to run the code
+        actionButton('plotAction', 'Plot it')
+      ),
+      # output the objects of interest
+      mainPanel(
+        plotOutput('boxPlot'),
+        tableOutput('dataTable')
+      )
+    )
+  )
+
+server <- function(input, output, session){
+  # create a reactive object that fires when the plotAction button is clicked
+  # store the results in this counter-intuitive way
+  options(shiny.maxRequestSize=30*1024^2)
+  df <- reactive({
+    req(input$inputFile)
+    read_csv(input$inputFile$datapath)
+  })
+  observe({
+    #input$inputFile
+    df()
+    if (is.null(df()))
+      return(NULL)
+    updateSelectInput(
+      session,
+      'necSelect',
+      'Which NECs?',
+      choices = c('All', df() %>% distinct(asunit) %>% pull())
+    )
+  })
+  
+  p <- eventReactive(input$plotAction, {
+    exercisePlot(df(), input$necSelect, input$dateRange[1],
+                 input$dateRange[2], input$priorityCheck,
+                 input$countCheck)
+  },
+  ignoreInit = TRUE) # does not run the code when the app initializes
+  # put the plot and table on the page
+  output$boxPlot <- renderPlot({p()$plot})
+  output$dataTable <- renderTable({p()$tab})
+}
+
+shinyApp(ui, server)
+```
+
+<!-- There's so much to do with shiny that we can't cover it all here but this gives you a taste of how to work with it and how to use it to impress your friends and neighbors -->
+
+## Deploy your app
+Writing a great shiny app is kind of a fruitless endeavor unless you put it to use. The point of shiny is to deploy it on the web for others to use. Here's some options. We won't go through the hows, there just isn't time.
+
+The commercial options are free (with restrictions) and easy to use. Great for impressing your friends and neighbors, not so great for work products. For work products you'll need to either use CProbe or get your own server.
+
+### RStudio
+RStudio has a number of free options with integrated support in the RStudio IDE. Open a shiny app file and look at the upper right corner of the script window and you'll see a blue "publish" icon. Here RStudio automates some of the publishing steps for you.
+
+### shinyapp.io
+Get an account, connect your RStudio IDE to the account, select the files, and hit publish. That's it, now your app is online. Putting \href{https://jthompsonexamples.shinyapps.io/funWithPlots/}{\color{blue}{\underline{this app}}} online took approximately two minutes. That includes getting and setting up an account. Now anyone can access the app and draw graphs.
+
+### Connect
+Similar to shinyapp.io but with much more power, and it's not free. It has many more features like support for R and Python, hosts more types of files (like markdown), and integrated collaboration. More of an enterprise solution which requires IT knowledge.
+
+### Amazon Web Services (AWS)
+Free through Amazon with size and usage restrictions. Setting up an instance is much more of a process than shinyapp.io (takes a few hours to work your way through the process the first time unless you're a Linux/Ubuntu guru) but you get more space and AWS has a lot of features you can tie into. Launching and managing a shiny app on AWS requires some knowledge of Linux and a client that can manage SSH connections. It is very cumbersome but there are some good tutorials out there.
+
+### GitHub
+The free version of RStudio Connect. You have two options with GitHub: Run the file using the `gist` function or create a repository and let people copy and paste your code and run locally. Both have pros and cons. The primary con is the user must launch the app from an R client, not just go to a website like with shinyapp.io. If you're collaborating with a team though, GitHub is a great way to do it. RStudio also has integrated GitHub support, if you can get the Git program loaded on your government machine that is.
+
+I've hosted an advanced shiny-enabled HTML tutorial using this method. Check out the advancedShiny.R file for more information.
+
+### CProbe
+The easiest option for work product. Our friends at CAA got R on the cloud and you can deploy shiny apps on it. And it is accredited for FOUO data but not PII. However you must be on a NIPR connection to CAC-login to the server and you cannot connect to the web from your app so no API support. To deploy an app simply log into your CProbe account, place the shiny files (split into a ui.R file and a server.R file) along with any other files your app requires into a folder. Then place that folder into the "shinyapps" directory. Any logged in user can access these apps. For personal apps use the "myshiny" folder.
+
+### On-site Server
+The strongest option; get your organization to resource an on-site server. Here you have total control over what goes on it and classification levels. This is the best long term solution, but also the costliest in both dollars and man-hours to setup and manage. This option requires IT professionals, not for casual users but a great enterprise solution. ARCYBER, TRAC-MTRY, SOCOM, and others have these setup at various classification levels.
